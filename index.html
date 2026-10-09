@@ -319,17 +319,25 @@ class Component extends DCLogic {
       };
       cat.addEventListener('click', e => { e.stopPropagation(); wa(); });
       cat.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); wa(); } });
-      // Clic en la página: el gato camina hasta el punto (o al hueco libre más cercano, sin tapar texto ni imágenes).
-      document.addEventListener('click', e => {
-        if (mode === 'none' || mode === 'jump' || e.target.closest('a,button,input,select,textarea,label,video,#bastet-cat')) return;
-        const bl = blockers(), p = best(bl, e.clientX + scrollX, e.clientY + scrollY);
+      // Clic en la página (salvo botones, enlaces y formularios): camina si está cerca, salta si está lejos.
+      let pending = null;
+      const goTo = (cx, cy) => {
+        const bl = blockers(), p = best(bl, cx, cy);
         if (!p) return;
-        if (Math.abs(p.x - px) < 8 && Math.abs(p.y - py) < 8) return;
+        const dx = p.x - px, dy = p.y - py, dist = Math.hypot(dx, dy);
+        if (dist < 8) return;
         userSpot = true; lastAct = act(); show(true);
         if (rm) { px = p.x; py = p.y; return; }
-        wx0 = px; wy0 = py; wx1 = p.x; wy1 = p.y; wt0 = performance.now(); wlen = Math.hypot(wx1 - wx0, wy1 - wy0);
-        wdur = Math.max(500, Math.min(2800, wlen / (wlen > 700 ? .45 : .26))); walkDir = wx1 >= wx0 ? -1 : 1; if (Math.abs(wx1 - wx0) < 6) walkDir = face;
+        if (dist > 340 || Math.abs(dy) > 120) { jumpTo(p, performance.now()); return; }
+        wx0 = px; wy0 = py; wx1 = p.x; wy1 = p.y; wt0 = performance.now(); wlen = dist;
+        wdur = Math.max(500, Math.min(2800, wlen / .26)); walkDir = dx >= 0 ? -1 : 1; if (Math.abs(dx) < 6) walkDir = face;
         face = walkDir; mode = 'walk';
+      };
+      document.addEventListener('click', e => {
+        if (mode === 'none' || e.target.closest('a,button,input,select,textarea,label,form,video,summary,[role=button],#bastet-cat')) return;
+        const c = { x: e.clientX + scrollX, y: e.clientY + scrollY };
+        if (mode === 'jump') { pending = c; return; }
+        goTo(c.x, c.y);
       });
       const decide = t => {
         lastCheck = t;
@@ -352,7 +360,7 @@ class Component extends DCLogic {
           px = fx + (tx - fx) * e; py = fy + (ty - fy) * e - arc;
           face = dirx > 0 ? -1 : 1;
           const ps = BJ.poseAt(p); draw(ps.frame, ps.sx, ps.sy);
-          if (p >= 1) { px = tx; py = ty; mode = 'idle'; face = 1; cool = t + 350; lastCheck = t; draw(BJ.REST, 1, 1); }
+          if (p >= 1) { px = tx; py = ty; mode = 'idle'; face = 1; cool = t + 350; lastCheck = t; draw(BJ.REST, 1, 1); if (pending) { const c = pending; pending = null; goTo(c.x, c.y); } }
         } else if (mode === 'walk') {
           const p = Math.min(1, (t - wt0) / wdur), e = p < .5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2, s = wlen * e;
           px = wx0 + (wx1 - wx0) * e; py = wy0 + (wy1 - wy0) * e;
