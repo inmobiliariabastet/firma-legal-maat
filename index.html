@@ -368,7 +368,12 @@ class Component extends DCLogic {
         lastCheck = t; lastSY = scrollY;
         const a = act(), bl = blockers(), w = W(), h = H();
         const here = visible(py, h) && px >= 0 && px + w <= innerWidth && free(bl, px, py, w, h);
-        if (mode === 'none') { const an = anchor(a), p = best(bl, an.x, an.y); lastAct = a; if (p) { px = p.x; py = p.y; mode = 'idle'; show(true); } return; }
+        if (mode === 'none') {
+          // Siempre empieza sentado sobre el nombre de la Dra. Silvana (si está visible); si no, en el hueco libre más cercano al título.
+          const cp = $('.capt');
+          if (cp && getComputedStyle(cp).display !== 'none') { const r = cp.getBoundingClientRect(); if (r.width > 0 && r.top > navB() + h && r.bottom < botB()) { px = r.left + scrollX + 30; py = r.top + scrollY - h - 8; lastAct = a; mode = 'idle'; show(true); return; } }
+          const an = anchor(a), p = best(bl, an.x, an.y); lastAct = a; if (p) { px = p.x; py = p.y; mode = 'idle'; show(true); } return;
+        }
         if (here && (a === lastAct || userSpot)) return;
         userSpot = false;
         const an = anchor(a), p = best(bl, an.x, an.y);
