@@ -248,6 +248,47 @@ class Component extends DCLogic {
       const step = t => { const dt = Math.min(.05, (t - last) / 1000); last = t; if (auto && !hold && !dragging) { pos += dt * 44; mq.scrollLeft = pos; if (mq.scrollLeft >= half()) { mq.scrollLeft -= half(); pos = mq.scrollLeft; } } requestAnimationFrame(step); };
       requestAnimationFrame(step);
     }
+    const heads = $$('h1,h2').filter(h => h.textContent.trim());
+    if (heads.length) {
+      const W = () => innerWidth < 700 ? 40 : 58, H = () => W() * 1213 / 827;
+      const cat = document.createElement('div');
+      cat.setAttribute('aria-hidden', 'true');
+      cat.style.cssText = 'position:fixed;left:0;top:0;z-index:45;pointer-events:none;transform-origin:50% 100%;will-change:transform;opacity:0;transition:opacity .6s';
+      const im = document.createElement('img');
+      im.src = 'assets/gato.webp'; im.alt = ''; im.draggable = false;
+      im.style.cssText = 'display:block;width:100%;height:auto;transform-origin:50% 100%;filter:drop-shadow(0 6px 8px rgba(120,80,10,.28));' + (rm ? '' : 'animation:catbreath 3.2s ease-in-out infinite');
+      cat.appendChild(im); document.body.appendChild(cat);
+      const st = document.createElement('style'); st.textContent = '@keyframes catbreath{0%,100%{transform:scaleY(1)}50%{transform:scaleY(1.025)}}'; document.head.appendChild(st);
+      const rg = document.createRange();
+      const navB = () => nav.getBoundingClientRect().bottom;
+      const target = i => {
+        const h = heads[i]; rg.selectNodeContents(h); const r = rg.getBoundingClientRect(), w = W(), ht = H();
+        let x = Math.min(innerWidth - w - 8, Math.max(8, r.right - w - 4)), y = r.top - ht + 8;
+        const lo = navB() + 4; if (y < lo) y = lo;
+        if (y > innerHeight - ht - 8) y = innerHeight - ht - 8;
+        return { x, y };
+      };
+      let cur = -1, to = 0, fx = 0, fy = 0, px = 0, py = 0, t0 = 0, dur = 0, jumping = false, face = 1, dirx = 1, ready = false;
+      const act = () => { let a = 0; heads.forEach((h, i) => { if (h.getBoundingClientRect().top < innerHeight * .6) a = i; }); return a; };
+      const draw = (x, y, rot, sx, sy) => { cat.style.transform = `translate3d(${x}px,${y}px,0) rotate(${rot}deg) scale(${sx * face},${sy})`; cat.style.width = W() + 'px'; };
+      const ease = p => p < .5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
+      const loop = t => {
+        const a = act();
+        if (!ready) { cur = to = a; const p = target(a); px = p.x; py = p.y; ready = true; draw(px, py, 0, 1, 1); cat.style.opacity = 1; }
+        if (a !== to) { if (rm) { to = cur = a; } else { to = a; fx = px; fy = py; t0 = t; const d = target(a); dirx = d.x >= fx ? 1 : -1; if (Math.abs(d.x - fx) < 12) dirx = -1; dur = 620 + Math.min(280, Math.abs(d.y - fy) * .35); jumping = true; } }
+        const d = target(to);
+        if (jumping) {
+          const p = Math.min(1, (t - t0) / dur), e = ease(p), arc = Math.sin(Math.PI * p) * (50 + Math.min(80, Math.abs(d.y - fy) * .3));
+          px = fx + (d.x - fx) * e; py = fy + (d.y - fy) * e - arc;
+          face = dirx > 0 ? -1 : 1;
+          const sq = p < .14 ? 1 - .16 * (p / .14) : p > .86 ? 1 - .16 * ((p - .86) / .14) : 1 + .08 * Math.sin(Math.PI * p);
+          draw(px, py, dirx * (p - .5) * -22, 1 / Math.max(.9, sq) , sq);
+          if (p >= 1) { jumping = false; cur = to; face = 1; }
+        } else { px = d.x; py = d.y; draw(px, py, 0, 1, 1); }
+        requestAnimationFrame(loop);
+      };
+      requestAnimationFrame(loop);
+    }
     const mv = $('#mv');
     if (mv) { mv.muted = true; mv.setAttribute('muted', ''); mv.playsInline = true; const go = () => mv.play().catch(() => {}); go(); mv.addEventListener('canplay', go, { once: true }); new IntersectionObserver(es => es.forEach(e => e.isIntersecting ? go() : mv.pause()), { threshold: .25 }).observe(mv); ['pointerdown', 'scroll', 'keydown'].forEach(t => addEventListener(t, go, { once: true, passive: true })); }
     const v = $('#hv'), fb = $('#fb2');
