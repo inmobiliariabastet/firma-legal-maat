@@ -250,44 +250,106 @@ class Component extends DCLogic {
       requestAnimationFrame(step);
     }
     const heads = $$('h1,h2').filter(h => h.textContent.trim());
-    if (heads.length) {
-      const W = () => innerWidth < 700 ? 56 : 78, H = () => W() * BastetJump.ASPECT;
+    if (heads.length && window.BastetJump) {
+      const BJ = BastetJump, W = () => innerWidth < 700 ? 56 : 78, H = () => W() * BJ.ASPECT;
       const cat = document.createElement('div');
+      cat.id = 'bastet-cat';
       cat.setAttribute('aria-hidden', 'true');
-      cat.style.cssText = 'position:fixed;left:0;top:0;z-index:45;pointer-events:none;transform-origin:50% 100%;will-change:transform;opacity:0;transition:opacity .6s';
-      const im = BastetJump.createSprite(W());
-      im.style.transformOrigin = '50% 100%'; im.style.filter = 'drop-shadow(0 6px 8px rgba(120,80,10,.28))'; im.style.animation = rm ? '' : 'catbreath 3.2s ease-in-out infinite';
+      cat.style.cssText = 'position:absolute;left:0;top:0;z-index:45;cursor:pointer;transform-origin:50% 100%;will-change:transform;opacity:0;transition:opacity .5s';
+      const im = BJ.createSprite(W());
+      im.style.transformOrigin = '50% 100%'; im.style.filter = 'drop-shadow(0 6px 8px rgba(120,80,10,.28))';
+      im.style.animation = rm ? '' : 'catbreath 3.2s ease-in-out infinite';
       cat.appendChild(im); document.body.appendChild(cat);
       const st = document.createElement('style'); st.textContent = '@keyframes catbreath{0%,100%{transform:scaleY(1)}50%{transform:scaleY(1.025)}}'; document.head.appendChild(st);
-      const rg = document.createRange();
+      const rg = document.createRange(), M = 8;
       const navB = () => nav.getBoundingClientRect().bottom;
-      const target = i => {
-        const h = heads[i]; rg.selectNodeContents(h); const r = rg.getBoundingClientRect(), w = W(), ht = H();
-        let x = Math.min(innerWidth - w - 8, Math.max(8, r.right - w - 4)), y = r.top - ht + 8;
-        const lo = navB() + 4; if (y < lo) y = lo;
-        if (y > innerHeight - ht - 8) y = innerHeight - ht - 8;
-        return { x, y };
+      // Rectángulos (coords. de documento) de todo texto e imagen visible cerca de la pantalla.
+      const blockers = () => {
+        const out = [], y0 = scrollY - 120, y1 = scrollY + innerHeight + 120, sx = scrollX, sy = scrollY;
+        const add = r => { if (r.width > 1 && r.height > 1 && r.bottom + sy > y0 && r.top + sy < y1) out.push([r.left + sx, r.top + sy, r.right + sx, r.bottom + sy]); };
+        const tw = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, { acceptNode: n => n.nodeValue.trim() && n.parentElement && !n.parentElement.closest('script,style,noscript,#bastet-cat,[hidden]') ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT });
+        for (let n; (n = tw.nextNode());) { rg.selectNodeContents(n); for (const r of rg.getClientRects()) add(r); }
+        $$('img,video,canvas,button,input,select,textarea').forEach(e => {
+          if (e.closest('#bastet-cat')) return;
+          const r = e.getBoundingClientRect(), cs = getComputedStyle(e);
+          if (cs.display === 'none' || cs.visibility === 'hidden') return;
+          if (r.width >= innerWidth * .6 && e.matches('img,video')) return; // fondos y bandas a todo lo ancho
+          if (e.matches('.heroimg,#hv,#rev')) return;
+          add(r);
+        });
+        $$('.mq').forEach(e => add(e.getBoundingClientRect())); // el carrusel se mueve: toda su zona está ocupada
+        $$('a[href*="wa.me"]').forEach(e => { if (getComputedStyle(e).position === 'fixed') add(e.getBoundingClientRect()); });
+        return out;
       };
-      let cur = -1, to = 0, fx = 0, fy = 0, px = 0, py = 0, t0 = 0, dur = 0, jumping = false, face = 1, dirx = 1, ready = false;
+      const free = (bl, x, y, w, h) => {
+        const ix = w * .08, iy = h * .06, L = x + ix - 6, T = y + iy - 6, R = x + w - ix + 6, B = y + h - 2 + 6;
+        for (let i = 0; i < bl.length; i++) { const b = bl[i]; if (L < b[2] && R > b[0] && T < b[3] && B > b[1]) return false; }
+        return true;
+      };
+      const visible = (y, h) => y >= scrollY + navB() + 4 && y + h <= scrollY + innerHeight - 4;
       const act = () => { let a = 0; heads.forEach((h, i) => { if (h.getBoundingClientRect().top < innerHeight * .6) a = i; }); return a; };
-      let curW = 0, curF = -1;
-      const draw = (x, y, fr, sx, sy) => { cat.style.transform = `translate3d(${x}px,${y}px,0) scale(${sx * face},${sy})`; if (curW !== W()) { curW = W(); im.setWidth(curW); cat.style.width = curW + 'px'; } if (fr !== curF) { curF = fr; im.setFrame(fr); } };
+      const anchor = i => { rg.selectNodeContents(heads[i]); const r = rg.getBoundingClientRect(); return { x: r.right - W() / 2 + scrollX, y: r.top + scrollY }; };
+      const best = (bl, ax, ay) => {
+        const w = W(), h = H(), top = scrollY + navB() + M, bot = scrollY + innerHeight - h - M, right = innerWidth - w - M;
+        let bx = null, by = null, bd = 1e15;
+        for (let y = top; y <= bot; y += 14) for (let x = M; x <= right; x += 14) {
+          const d = (x + w / 2 - ax) * (x + w / 2 - ax) + (y + h - ay) * (y + h - ay);
+          if (d < bd && free(bl, x, y, w, h)) { bd = d; bx = x; by = y; }
+        }
+        return bx == null ? null : { x: bx, y: by };
+      };
+      let mode = 'none', px = 0, py = 0, fx = 0, fy = 0, tx = 0, ty = 0, t0 = 0, dur = 0, face = 1, dirx = 1, curW = 0, curF = -1;
+      let lastAct = -1, lastCheck = 0, cool = 0, hoverCool = 0, hovering = false, mouseX = 0, shown = false, hopH = 0;
+      const draw = (fr, sx, sy, dy) => {
+        cat.style.transform = `translate3d(${px}px,${py + (dy || 0)}px,0) scale(${sx * face},${sy})`;
+        if (curW !== W()) { curW = W(); im.setWidth(curW); cat.style.width = curW + 'px'; }
+        if (fr !== curF) { curF = fr; im.setFrame(fr); }
+      };
+      const show = on => { if (on !== shown) { shown = on; cat.style.opacity = on ? 1 : 0; } };
+      const jumpTo = (p, t) => {
+        fx = px; fy = py; tx = p.x; ty = p.y; t0 = t; dirx = tx >= fx ? 1 : -1; if (Math.abs(tx - fx) < 12) dirx = -1;
+        dur = 1000 + Math.min(300, Math.abs(ty - fy) * .35); mode = 'jump';
+      };
       const ease = p => p < .5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
+      cat.addEventListener('pointerenter', e => { if (e.pointerType === 'touch') return; hovering = true; mouseX = e.clientX; });
+      cat.addEventListener('pointerleave', () => { hovering = false; });
+      cat.addEventListener('click', () => { hoverCool = 0; });
+      const decide = t => {
+        lastCheck = t;
+        const a = act(), bl = blockers(), w = W(), h = H();
+        const here = visible(py, h) && px >= 0 && px + w <= innerWidth && free(bl, px, py, w, h);
+        if (mode === 'none') { const an = anchor(a), p = best(bl, an.x, an.y); lastAct = a; if (p) { px = p.x; py = p.y; mode = 'idle'; show(true); } return; }
+        if (here && a === lastAct) return;
+        const an = anchor(a), p = best(bl, an.x, an.y);
+        if (!p) { if (!here) show(false); return; }
+        lastAct = a; show(true);
+        if (Math.abs(p.x - px) < 20 && Math.abs(p.y - py) < 20) return;
+        if (rm) { px = p.x; py = p.y; return; }
+        jumpTo(p, t);
+      };
       const loop = t => {
-        const a = act();
-        if (!ready) { cur = to = a; const p = target(a); px = p.x; py = p.y; ready = true; draw(px, py, BastetJump.REST, 1, 1); cat.style.opacity = 1; }
-        if (a !== to) { if (rm) { to = cur = a; } else { to = a; fx = px; fy = py; t0 = t; const d = target(a); dirx = d.x >= fx ? 1 : -1; if (Math.abs(d.x - fx) < 12) dirx = -1; dur = 1000 + Math.min(300, Math.abs(d.y - fy) * .35); jumping = true; } }
-        const d = target(to);
-        if (jumping) {
-          const p = Math.min(1, (t - t0) / dur), mp = Math.max(0, Math.min(1, (p - .10) / .70)), e = ease(mp), arc = Math.sin(Math.PI * mp) * (50 + Math.min(80, Math.abs(d.y - fy) * .3));
-          px = fx + (d.x - fx) * e; py = fy + (d.y - fy) * e - arc;
+        if (mode === 'jump') {
+          const p = Math.min(1, (t - t0) / dur), mp = Math.max(0, Math.min(1, (p - .10) / .70)), e = ease(mp);
+          const arc = Math.sin(Math.PI * mp) * (50 + Math.min(80, Math.abs(ty - fy) * .3));
+          px = fx + (tx - fx) * e; py = fy + (ty - fy) * e - arc;
           face = dirx > 0 ? -1 : 1;
-          const ps = BastetJump.poseAt(p);
-          draw(px, py, ps.frame, ps.sx, ps.sy);
-          if (p >= 1) { jumping = false; cur = to; face = 1; }
-        } else { px = d.x; py = d.y; draw(px, py, BastetJump.REST, 1, 1); }
+          const ps = BJ.poseAt(p); draw(ps.frame, ps.sx, ps.sy);
+          if (p >= 1) { px = tx; py = ty; mode = 'idle'; face = 1; cool = t + 350; lastCheck = t; draw(BJ.REST, 1, 1); }
+        } else if (mode === 'hop') {
+          const p = Math.min(1, (t - t0) / 700), ps = BJ.poseAt(p);
+          draw(ps.frame, ps.sx, ps.sy, -hopH * ps.y);
+          if (p >= 1) { mode = 'idle'; hoverCool = t + 900; draw(BJ.REST, 1, 1); }
+        } else if (mode === 'idle') {
+          if (hovering && !rm && t > hoverCool) { // reacciona al mouse: se voltea hacia él y da un brinco
+            const cx = px + W() / 2 - scrollX; face = mouseX < cx ? 1 : -1; hopH = 26; t0 = t; mode = 'hop';
+          } else {
+            draw(BJ.REST, 1, 1);
+            if (!hovering && t > cool && t - lastCheck > 250) decide(t);
+          }
+        } else if (t - lastCheck > 250) decide(t);
         requestAnimationFrame(loop);
       };
+      addEventListener('resize', () => { lastCheck = 0; });
       requestAnimationFrame(loop);
     }
     const mv = $('#mv');
