@@ -41,7 +41,6 @@ a{color:#0A0A0A;text-decoration:none}a:hover{color:#5C5C5C}
 <div style="position:relative;background:radial-gradient(520px 520px at 8% 12%,rgba(201,154,46,.18),transparent 70%),radial-gradient(620px 620px at 95% 26%,rgba(201,154,46,.16),transparent 70%),radial-gradient(560px 560px at 6% 48%,rgba(201,154,46,.16),transparent 70%),radial-gradient(640px 640px at 94% 64%,rgba(201,154,46,.15),transparent 70%),radial-gradient(560px 560px at 10% 82%,rgba(201,154,46,.16),transparent 70%),#fff;overflow:hidden">
 <div style="position:absolute;inset:0;pointer-events:none;z-index:0;opacity:.5;background-image:url(&quot;data:image/svg+xml;utf8,&lt;svg xmlns='http://www.w3.org/2000/svg' width='300' height='300'&gt;&lt;filter id='n'&gt;&lt;feTurbulence type='fractalNoise' baseFrequency='.8 .15' numOctaves='3' seed='4'/&gt;&lt;feColorMatrix values='0 0 0 0 .957 0 0 0 0 .949 0 0 0 0 .925 0 0 0 .5 0'/&gt;&lt;/filter&gt;&lt;rect width='300' height='300' filter='url(%23n)'/&gt;&lt;/svg&gt;&quot;)"></div>
 
-<a href="https://wa.me/59170613687?text=Hola%20MAAT%2C%20quiero%20mi%20consulta%20gratis." target="_blank" rel="noopener" aria-label="Escríbenos por WhatsApp" style="position:fixed;right:20px;bottom:20px;z-index:65;width:46px;height:46px;border-radius:50%;display:grid;place-items:center;background:rgba(10,10,10,.72);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border:1px solid #C99A2E;color:#E8C25E;box-shadow:0 6px 20px rgba(0,0,0,.25);transition:background .3s,color .3s,transform .3s" style-hover="background:#C99A2E;color:#0A0A0A;transform:translateY(-2px)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21l1.65-4.9A9 9 0 1 1 8 19.4L3 21Z"></path><path d="M9 10c0 3 2 5 5 5l1.2-1.2a.6.6 0 0 0 0-.8l-1.4-1a.6.6 0 0 0-.7 0l-.6.5c-.9-.4-1.600-1.100-2-2l.5-.6a.6.6 0 0 0 0-.7l-1-1.400a.6.6 0 0 0-.8 0L9 10Z"></path></svg></a>
 <div id="prog" style="position:fixed;top:0;left:0;height:2px;width:100%;background:linear-gradient(90deg,#C99A2E,#E8C25E);transform-origin:left;transform:scaleX(0);z-index:70;pointer-events:none"></div>
 <header id="nav" style="position:fixed;top:0;left:0;right:0;z-index:50;display:flex;align-items:center;justify-content:space-between;gap:24px;padding:18px clamp(20px,4vw,56px);background:transparent;border-bottom:1px solid transparent;transition:background .5s,border-color .5s,padding .5s">
 <a href="#top" style="display:flex;align-items:center;gap:16px;line-height:0"><img src="assets/logo.png" alt="MAAT Firma Legal" style="height:56px;width:auto;display:block"><span class="nx" style="width:1px;height:34px;background:#C99A2E"></span><span class="nx" style="white-space:nowrap;line-height:1.5;font-size:9px;letter-spacing:.24em;font-weight:600;color:#5C5C5C">FIRMA LEGAL<br>by BASTET REAL STATE</span></a>
@@ -254,8 +253,8 @@ class Component extends DCLogic {
       const BJ = BastetJump, W = () => innerWidth < 700 ? 56 : 78, H = () => W() * BJ.ASPECT;
       const cat = document.createElement('div');
       cat.id = 'bastet-cat';
-      cat.setAttribute('aria-hidden', 'true');
-      cat.style.cssText = 'position:absolute;left:0;top:0;z-index:45;cursor:pointer;transform-origin:50% 100%;will-change:transform;opacity:0;transition:opacity .5s';
+      cat.setAttribute('role', 'link'); cat.setAttribute('tabindex', '0'); cat.setAttribute('aria-label', 'Solicitar una asesoría por WhatsApp');
+      cat.style.cssText = 'position:absolute;left:0;top:0;z-index:45;cursor:pointer;outline-offset:4px;transform-origin:50% 100%;will-change:transform;opacity:0;transition:opacity .5s';
       const im = BJ.createSprite(W());
       im.style.transformOrigin = '50% 100%'; im.style.filter = 'drop-shadow(0 6px 8px rgba(120,80,10,.28))';
       im.style.animation = rm ? '' : 'catbreath 3.2s ease-in-out infinite';
@@ -300,6 +299,7 @@ class Component extends DCLogic {
       };
       let mode = 'none', px = 0, py = 0, fx = 0, fy = 0, tx = 0, ty = 0, t0 = 0, dur = 0, face = 1, dirx = 1, curW = 0, curF = -1;
       let lastAct = -1, lastCheck = 0, cool = 0, hoverCool = 0, hovering = false, mouseX = 0, shown = false, hopH = 0;
+      let userSpot = false, wx0 = 0, wy0 = 0, wx1 = 0, wy1 = 0, wt0 = 0, wdur = 0, wlen = 0, walkDir = 1;
       const draw = (fr, sx, sy, dy) => {
         cat.style.transform = `translate3d(${px}px,${py + (dy || 0)}px,0) scale(${sx * face},${sy})`;
         if (curW !== W()) { curW = W(); im.setWidth(curW); cat.style.width = curW + 'px'; }
@@ -313,13 +313,31 @@ class Component extends DCLogic {
       const ease = p => p < .5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
       cat.addEventListener('pointerenter', e => { if (e.pointerType === 'touch') return; hovering = true; mouseX = e.clientX; });
       cat.addEventListener('pointerleave', () => { hovering = false; });
-      cat.addEventListener('click', () => { hoverCool = 0; });
+      const wa = () => {
+        const a = $('a[href*="wa.me"]'), base = a ? a.href.split('?')[0] : 'https://wa.me/59170613687';
+        window.open(base + '?text=' + encodeURIComponent('Hola MAAT, quiero solicitar una asesoría.'), '_blank', 'noopener');
+      };
+      cat.addEventListener('click', e => { e.stopPropagation(); wa(); });
+      cat.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); wa(); } });
+      // Clic en la página: el gato camina hasta el punto (o al hueco libre más cercano, sin tapar texto ni imágenes).
+      document.addEventListener('click', e => {
+        if (mode === 'none' || mode === 'jump' || e.target.closest('a,button,input,select,textarea,label,video,#bastet-cat')) return;
+        const bl = blockers(), p = best(bl, e.clientX + scrollX, e.clientY + scrollY);
+        if (!p) return;
+        if (Math.abs(p.x - px) < 8 && Math.abs(p.y - py) < 8) return;
+        userSpot = true; lastAct = act(); show(true);
+        if (rm) { px = p.x; py = p.y; return; }
+        wx0 = px; wy0 = py; wx1 = p.x; wy1 = p.y; wt0 = performance.now(); wlen = Math.hypot(wx1 - wx0, wy1 - wy0);
+        wdur = Math.max(500, Math.min(2800, wlen / (wlen > 700 ? .45 : .26))); walkDir = wx1 >= wx0 ? -1 : 1; if (Math.abs(wx1 - wx0) < 6) walkDir = face;
+        face = walkDir; mode = 'walk';
+      });
       const decide = t => {
         lastCheck = t;
         const a = act(), bl = blockers(), w = W(), h = H();
         const here = visible(py, h) && px >= 0 && px + w <= innerWidth && free(bl, px, py, w, h);
         if (mode === 'none') { const an = anchor(a), p = best(bl, an.x, an.y); lastAct = a; if (p) { px = p.x; py = p.y; mode = 'idle'; show(true); } return; }
-        if (here && a === lastAct) return;
+        if (here && (a === lastAct || userSpot)) return;
+        userSpot = false;
         const an = anchor(a), p = best(bl, an.x, an.y);
         if (!p) { if (!here) show(false); return; }
         lastAct = a; show(true);
@@ -335,6 +353,15 @@ class Component extends DCLogic {
           face = dirx > 0 ? -1 : 1;
           const ps = BJ.poseAt(p); draw(ps.frame, ps.sx, ps.sy);
           if (p >= 1) { px = tx; py = ty; mode = 'idle'; face = 1; cool = t + 350; lastCheck = t; draw(BJ.REST, 1, 1); }
+        } else if (mode === 'walk') {
+          const p = Math.min(1, (t - wt0) / wdur), e = p < .5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2, s = wlen * e;
+          px = wx0 + (wx1 - wx0) * e; py = wy0 + (wy1 - wy0) * e;
+          const gait = [5, 6, 1, 6], ph = s / 34, fr = gait[Math.floor(ph) % 4], bob = Math.abs(Math.sin(ph * Math.PI / 2));
+          const ease2 = Math.min(1, Math.min(p, 1 - p) * 8); // al arrancar y frenar el paso se acorta
+          face = walkDir;
+          if (p > .93) draw(p > .97 ? BJ.REST : 0, 1, 1);
+          else draw(fr, 1 + .03 * bob * ease2, 1 - .04 * bob * ease2, -5 * bob * ease2);
+          if (p >= 1) { px = wx1; py = wy1; mode = 'idle'; face = 1; cool = t + 600; lastCheck = t; draw(BJ.REST, 1, 1); }
         } else if (mode === 'hop') {
           const p = Math.min(1, (t - t0) / 700), ps = BJ.poseAt(p);
           draw(ps.frame, ps.sx, ps.sy, -hopH * ps.y);
