@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script src="./support.js"></script>
 <script src="./bastet-jump.js"></script>
+<script src="./bastet-walk.js"></script>
 </head>
 <body>
 <x-dc>
@@ -258,7 +259,9 @@ class Component extends DCLogic {
       const im = BJ.createSprite(W());
       im.style.transformOrigin = '50% 100%'; im.style.filter = 'drop-shadow(0 6px 8px rgba(120,80,10,.28))';
       im.style.animation = rm ? '' : 'catbreath 3.2s ease-in-out infinite';
-      cat.appendChild(im); document.body.appendChild(cat);
+      const wim = BastetWalk.createSprite(W() * 1.17); // misma escala que la hoja de salto
+      wim.style.cssText += ';position:absolute;bottom:0;display:none;transform-origin:50% 100%;filter:drop-shadow(0 6px 8px rgba(120,80,10,.28))';
+      cat.appendChild(im); cat.appendChild(wim); document.body.appendChild(cat);
       const st = document.createElement('style'); st.textContent = '@keyframes catbreath{0%,100%{transform:scaleY(1)}50%{transform:scaleY(1.025)}}'; document.head.appendChild(st);
       const rg = document.createRange(), M = 8;
       const navB = () => nav.getBoundingClientRect().bottom;
@@ -297,12 +300,13 @@ class Component extends DCLogic {
         }
         return bx == null ? null : { x: bx, y: by };
       };
-      let mode = 'none', px = 0, py = 0, fx = 0, fy = 0, tx = 0, ty = 0, t0 = 0, dur = 0, face = 1, dirx = 1, curW = 0, curF = -1;
+      let mode = 'none', px = 0, py = 0, fx = 0, fy = 0, tx = 0, ty = 0, t0 = 0, dur = 0, face = 1, dirx = 1, curW = 0, curF = -1, walking = false, curWF = -1;
       let lastAct = -1, lastCheck = 0, cool = 0, hoverCool = 0, hovering = false, mouseX = 0, shown = false, hopH = 0;
       let userSpot = false, wx0 = 0, wy0 = 0, wx1 = 0, wy1 = 0, wt0 = 0, wdur = 0, wlen = 0, walkDir = 1;
-      const draw = (fr, sx, sy, dy) => {
-        cat.style.transform = `translate3d(${px}px,${py + (dy || 0)}px,0) scale(${sx * face},${sy})`;
-        if (curW !== W()) { curW = W(); im.setWidth(curW); cat.style.width = curW + 'px'; }
+      const useWalk = on => { if (on !== walking) { walking = on; wim.style.display = on ? 'block' : 'none'; im.style.visibility = on ? 'hidden' : 'visible'; } };
+      const draw = (fr, sx, sy, dy, rot) => {
+        cat.style.transform = `translate3d(${px}px,${py + (dy || 0)}px,0) rotate(${rot || 0}deg) scale(${sx * face},${sy})`;
+        if (curW !== W()) { curW = W(); im.setWidth(curW); cat.style.width = curW + 'px'; const d = curW / 284 * .975; wim.setWidth(341 * d); wim.style.left = ((38 - 22.4 * .975) * curW / 284) + 'px'; }
         if (fr !== curF) { curF = fr; im.setFrame(fr); }
       };
       const show = on => { if (on !== shown) { shown = on; cat.style.opacity = on ? 1 : 0; } };
@@ -330,7 +334,7 @@ class Component extends DCLogic {
         if (rm) { px = p.x; py = p.y; return; }
         if (dist > 340 || Math.abs(dy) > 120) { jumpTo(p, performance.now()); return; }
         wx0 = px; wy0 = py; wx1 = p.x; wy1 = p.y; wt0 = performance.now(); wlen = dist;
-        wdur = Math.max(500, Math.min(2800, wlen / .26)); walkDir = dx >= 0 ? -1 : 1; if (Math.abs(dx) < 6) walkDir = face;
+        wdur = Math.max(700, Math.min(3600, wlen / .16)); walkDir = dx >= 0 ? -1 : 1; if (Math.abs(dx) < 6) walkDir = face;
         face = walkDir; mode = 'walk';
       };
       document.addEventListener('click', e => {
@@ -362,14 +366,17 @@ class Component extends DCLogic {
           const ps = BJ.poseAt(p); draw(ps.frame, ps.sx, ps.sy);
           if (p >= 1) { px = tx; py = ty; mode = 'idle'; face = 1; cool = t + 350; lastCheck = t; draw(BJ.REST, 1, 1); if (pending) { const c = pending; pending = null; goTo(c.x, c.y); } }
         } else if (mode === 'walk') {
-          const p = Math.min(1, (t - wt0) / wdur), e = p < .5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2, s = wlen * e;
+          const p = Math.min(1, (t - wt0) / wdur), e = p < .5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2, sd = wlen * e;
           px = wx0 + (wx1 - wx0) * e; py = wy0 + (wy1 - wy0) * e;
-          const gait = [5, 6, 1, 6], ph = s / 34, fr = gait[Math.floor(ph) % 4], bob = Math.abs(Math.sin(ph * Math.PI / 2));
-          const ease2 = Math.min(1, Math.min(p, 1 - p) * 8); // al arrancar y frenar el paso se acorta
           face = walkDir;
-          if (p > .93) draw(p > .97 ? BJ.REST : 0, 1, 1);
-          else draw(fr, 1 + .03 * bob * ease2, 1 - .04 * bob * ease2, -5 * bob * ease2);
-          if (p >= 1) { px = wx1; py = wy1; mode = 'idle'; face = 1; cool = t + 600; lastCheck = t; draw(BJ.REST, 1, 1); }
+          if (p > .94) { useWalk(false); draw(p > .98 ? BJ.REST : 0, 1, 1); }
+          else {
+            useWalk(true);
+            const wp = BastetWalk.poseAt(sd / (W() * 1.9)), ease2 = Math.min(1, Math.min(p, 1 - p) * 10), hh = H(); // una zancada = 1,9 anchos de gato
+            if (wp.frame !== curWF) { curWF = wp.frame; wim.setFrame(wp.frame); }
+            draw(curF, 1, 1, -wp.bob * hh * ease2, wp.tilt * face * -1 * ease2);
+          }
+          if (p >= 1) { px = wx1; py = wy1; mode = 'idle'; face = 1; useWalk(false); cool = t + 600; lastCheck = t; draw(BJ.REST, 1, 1); if (pending) { const c = pending; pending = null; goTo(c.x, c.y); } }
         } else if (mode === 'hop') {
           const p = Math.min(1, (t - t0) / 700), ps = BJ.poseAt(p);
           draw(ps.frame, ps.sx, ps.sy, -hopH * ps.y);
