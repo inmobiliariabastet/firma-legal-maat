@@ -419,7 +419,7 @@ class Component extends DCLogic {
       requestAnimationFrame(loop);
     }
     const mv = $('#mv');
-    if (mv) { mv.muted = true; mv.setAttribute('muted', ''); mv.playsInline = true; let seen = false; const go = () => mv.play().catch(() => {}); new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { if (!seen) { seen = true; mv.preload = 'auto'; } go(); } else mv.pause(); }), { threshold: .25 }).observe(mv); }
+    if (mv) { mv.muted = true; mv.setAttribute('muted', ''); mv.playsInline = true; mv.loop = true; mv.setAttribute('loop', ''); mv.addEventListener('ended', () => { mv.currentTime = 0; mv.play().catch(() => {}); }); let seen = false; const go = () => mv.play().catch(() => {}); new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { if (!seen) { seen = true; mv.preload = 'auto'; } go(); } else mv.pause(); }), { threshold: .25 }).observe(mv); }
     const v = $('#hv'), fb = $('#fb2');
     $$('[data-soft]').forEach(e => { if (rm) return; e.style.opacity = 0; e.style.filter = 'blur(14px)'; e.style.transform = 'scale(1.04)'; e.style.transition = 'opacity 2.2s ease, filter 2.2s ease, transform 2.6s cubic-bezier(.22,.61,.36,1)'; const o = new IntersectionObserver(es => es.forEach(n => { if (n.isIntersecting) { e.style.opacity = 1; e.style.filter = 'none'; e.style.transform = 'none'; o.disconnect(); } }), { threshold: .2 }); o.observe(e); });
     if (!rm) {
